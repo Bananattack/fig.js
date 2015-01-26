@@ -1,0 +1,74 @@
+<!doctype html>
+<html>
+<head>
+    <title>fig - a GIF decoder</title>
+    <script src='fig.js'></script>
+</head>
+<body>
+    <div class='viewer'>
+        <input class='file' multiple type='file' />
+        <input class='reload_button' type='button' value='Reload' />
+        <div class='preview'>
+        </div>
+        <div class='output'>
+        </div>
+    </div>
+    <script>
+        (function(self) {
+            window.viewer = self;
+
+            var element = {
+                file: document.querySelector('.viewer .file'),
+                reloadButton: document.querySelector('.viewer .reload_button'),
+                preview: document.querySelector('.viewer .preview'),
+                output: document.querySelector('.viewer .output')
+            };
+
+            self.init = function() {
+                element.file.addEventListener('change', self.changeFile);
+                element.reloadButton.onclick = function() {
+                    self.changeFile({target: {files: self.files}, preventDefault: function(){}});
+                };
+                document.ondragover = function() { return false; };
+                document.ondragend = function() { return false; };
+                document.ondrop = self.changeFile;
+            }
+
+
+            self.changeFile = function(event) {
+                event.preventDefault();
+
+                var files = (event.dataTransfer ? event.dataTransfer : event.target).files;
+
+                if(files.length) {
+                    self.files = files;
+
+                    while(element.output.firstChild) {
+                        element.output.removeChild(element.output.firstChild);
+                    }
+
+                    files = Array.prototype.slice.call(files).sort(function(a, b) { return a.name.localeCompare(b.name); });
+
+                    fig.load({
+                        files: files,
+                        oncomplete: function(gifs) {
+                            for(var i = 0; i < gifs.length; i++) {
+                                var gif = gifs[i];
+                                for(var j = 0; j < gif.frames.length; j++) {
+                                    element.output.appendChild(gif.frames[j].canvas);
+                                }
+                            }
+                        },
+                        onerror: function(file, error) {
+                            alert(file.name + ' is invalid! ' + error)
+                        }
+                    });
+                }
+                return false;
+            };
+
+            self.init();
+        })({});
+    </script>
+</body>
+</html>
