@@ -47,10 +47,9 @@ Hook a file input or drag and drop handler up somewhere, and call fig.load to lo
         }
     });
 
-If `fig.load` is successful, it invokes the `oncomplete` callback with an array of GifImage objects as its argument.
-Otherwise, it calls the `onerror` function, once per file that failed to load.
+If `fig.load` is successful, it invokes the `oncomplete` callback with an array of GifImage objects as its argument, returned in the same order as the original `files` array. Otherwise, it calls the `onerror` function, once per file that failed to load.
 
-The `raw` flag detemines whether the GifImage objects are already rendered.
+The `raw` flag can be specified as `true` to indicate that `renderFrames()` should be called not on the GifImage objects automatically. This is mainly useful if you only want the raw indexed GIF, and plan to do your own disposal later.
 
 ### fig.GifReader
 
@@ -75,8 +74,9 @@ For more advanced usage, one can also use a GifReader directly:
     }
 
 
-The result of reader is a GifImage object,
-Note that unlike with `fig.load(...)`, directly using GifReader will not call renderFrames() on the returned object.
+The result of reader is a GifImage object, or `null` on failure. The `onerror` callback of the GifReader can be provided for better diagnostics. This API uses error callbacks rather than exceptions to work more easily with asynchronous use.
+
+Note that unlike with `fig.load(...)`, the GifReader returns a single raw GifImage on success. Directly using GifReader will not call `renderFrames()` on the returned object.
 
 ### fig.GifImage
 
