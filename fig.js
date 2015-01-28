@@ -1,59 +1,39 @@
 (function(fig) {
     window.fig = fig;
-
-    var gif = {
-        header: {
-            LENGTH: 6
-        },
-        block: {
-            EXTENSION: 0x21,
-            IMAGE: 0x2C,
-            TERMINATOR: 0x3B
-        },
-        extension: {
-            PLAIN_TEXT: 0x01,
-            GRAPHICS_CONTROL: 0xF9,
-            COMMENT: 0xFE,
-            APPLICATION: 0xFF
-        },
-        screenDescriptor: {
-            GLOBAL_COLOR: 0x80,
-            DEPTH_MASK: 0x07,
-            LENGTH: 7
-        },
-        imageDescriptor: {
-            LOCAL_COLOR: 0x80,
-            INTERLACE: 0x40,
-            DEPTH_MASK: 0x07,
-            LENGTH: 9
-        },
-        graphicsControl: {
-            TRANSPARENCY: 0x01,
-            DISPOSAL_MASK: 0x1C,
-            DISPOSAL_SHIFT: 2,
-            LENGTH: 5
-        },
-        lzw: {
-            MAX_BITS: 12,
-            MAX_CODES: (1 << 12),
-            MAX_STACK_SIZE: (1 << 12) + 1,
-            NULL_CODE: 0xCACA
-        },
-        disposal: {
-            UNSPECIFIED: 0,
-            NONE: 1,
-            BACKGROUND: 2,
-            PREVIOUS: 3,
-            COUNT: 4
-        }
-    };
  
+    var GifBlock = fig.GifBlock = {
+        EXTENSION: 0x21,
+        IMAGE: 0x2C,
+        TERMINATOR: 0x3B
+    };
 
-    var GifDisposal = fig.GifDisposal = gif.disposal;
+    var GifExtension = fig.GifExtension = {
+        PLAIN_TEXT: 0x01,
+        GRAPHICS_CONTROL: 0xF9,
+        COMMENT: 0xFE,
+        APPLICATION: 0xFF
+    };
+
+    var GifCompression = fig.GifCompression = {
+        MAX_BITS: 12,
+        MAX_CODES: (1 << 12),
+        MAX_STACK_SIZE: (1 << 12) + 1,
+        NULL_CODE: 0xCACA
+    };
+
+    var GifDisposal = fig.GifDisposal = {
+        UNSPECIFIED: 0,
+        NONE: 1,
+        BACKGROUND: 2,
+        PREVIOUS: 3,
+        COUNT: 4
+    };
 
     var GifHeader = fig.GifHeader = function() {
         this.version = 0;
     };
+
+    GifHeader.LENGTH = 6;
 
     var GifScreenDescriptor = fig.GifScreenDescriptor = function() {
         this.width = 0;
@@ -63,12 +43,21 @@
         this.aspect = 0;
     };
 
+    GifScreenDescriptor.GLOBAL_COLOR = 0x80;
+    GifScreenDescriptor.DEPTH_MASK = 0x07;
+    GifScreenDescriptor.LENGTH = 7;
+
     var GifGraphicsControl = fig.GifGraphicsControl = function() {
         this.delay = 0;
         this.isTransparent = false;
         this.transparencyIndex = false;
-        this.disposal = gif.disposal.UNSPECIFIED;
+        this.disposal = GifDisposal.UNSPECIFIED;
     };
+
+    GifGraphicsControl.TRANSPARENCY = 0x01;
+    GifGraphicsControl.DISPOSAL_MASK = 0x1C;
+    GifGraphicsControl.DISPOSAL_SHIFT = 2;
+    GifGraphicsControl.LENGTH = 5;
 
     var GifImageDescriptor = fig.GifImageDescriptor = function() {
         this.x = 0;
@@ -78,6 +67,11 @@
         this.localColors = null;
         this.interlace = false;
     };
+
+    GifImageDescriptor.LOCAL_COLOR = 0x80;
+    GifImageDescriptor.INTERLACE = 0x40;
+    GifImageDescriptor.DEPTH_MASK = 0x07;
+    GifImageDescriptor.LENGTH = 9;
 
     var GifFrame = fig.GifFrame = function() {
         this.graphicsControl = null;
@@ -102,13 +96,13 @@
         var transparencyIndex = cur.graphicsControl ? cur.graphicsControl.transparencyIndex : 0;
         var indexData = cur.indexData;
         var nextData = next.context.getImageData(0, 0, next.canvas.width, next.canvas.height);
-        var disposal = cur.graphicsControl ? cur.graphicsControl.disposal : gif.disposal.UNSPECIFIED;
+        var disposal = cur.graphicsControl ? cur.graphicsControl.disposal : GifDisposal.UNSPECIFIED;
 
         switch(disposal) {
-            case gif.disposal.BACKGROUND:
+            case GifDisposal.BACKGROUND:
                 for(var i = 0; i < localHeight; i++) {
                     for(var j = 0; j < localWidth; j++) {
-                        if(!isTransparent || indexData[i * localWidth + j] != transparencyIndex) {
+                        if(!isTransparent || indexData[i * localWidth + j] !== transparencyIndex) {
                             var x = (localX + j);
                             var y = (localY + i);
                             if(x < 0 || x >= nextData.width || y < 0 || y >= nextData.height) {
@@ -126,12 +120,12 @@
 
                 next.canvas.getContext('2d').putImageData(nextData, 0, 0);
                 break;
-            case gif.disposal.PREVIOUS:
-                var prevData = prev != null ? prev.context.getImageData(0, 0, prev.canvas.width, prev.canvas.height) : null;
+            case GifDisposal.PREVIOUS:
+                var prevData = prev !== null ? prev.context.getImageData(0, 0, prev.canvas.width, prev.canvas.height) : null;
 
                 for(var i = 0; i < localHeight; i++) {
                     for(var j = 0; j < localWidth; j++) {
-                        if(!isTransparent || indexData[i * localWidth + j] != transparencyIndex) {
+                        if(!isTransparent || indexData[i * localWidth + j] !== transparencyIndex) {
                             var x = (localX + j);
                             var y = (localY + i);
                             if(x < 0 || x >= nextData.width || y < 0 || y >= nextData.height) {
@@ -156,8 +150,8 @@
 
                 next.context.putImageData(nextData, 0, 0);
                 break;
-            case gif.disposal.UNSPECIFIED:
-            case gif.disposal.NONE:
+            case GifDisposal.UNSPECIFIED:
+            case GifDisposal.NONE:
             default:
                 break;
         }
@@ -220,7 +214,7 @@
         for(var i = 0; i < frames.length; i++) {
             var next = frames[i];
 
-            if(cur == null) {
+            if(cur === null) {
                 next.context.clearRect(0, 0, next.canvas.width, next.canvas.height);
             } else {
                 next.context.drawImage(cur.canvas, 0, 0);
@@ -229,9 +223,9 @@
 
             blitIndexedFrame(this.screenDescriptor, next);
 
-            if(cur != null) {
-                var disposal = cur.graphicsControl ? cur.graphicsControl.disposal : gif.disposal.UNSPECIFIED;
-                if(disposal == gif.disposal.NONE || disposal == gif.disposal.UNSPECIFIED) {
+            if(cur !== null) {
+                var disposal = cur.graphicsControl ? cur.graphicsControl.disposal : GifDisposal.UNSPECIFIED;
+                if(disposal === GifDisposal.NONE || disposal === GifDisposal.UNSPECIFIED) {
                     prev = cur;
                 }
             }
@@ -242,19 +236,23 @@
     var GifReader = fig.GifReader = function(buffer) {
         this.buffer = buffer;
         this.position = 0;
+        this.prefixCodes = new Array(GifCompression.MAX_CODES);
+        this.suffixChars = new Array(GifCompression.MAX_CODES);
+        this.charStack = new Array(GifCompression.MAX_STACK_SIZE);
+
         this.onerror = function(err){};
     };
 
     GifReader.prototype.readHeader = function() {
         var buffer = this.buffer;
         var i = this.position;
-        if(i + gif.header.LENGTH >= buffer.length) {
+        if(i + GifHeader.LENGTH >= buffer.length) {
             this.onerror('invalid GIF header (encountered early end of stream)');
             return null;
         }        
 
-        var signature = String.fromCharCode.apply(null, Array.prototype.slice.call(buffer, i, i + gif.header.LENGTH));
-        i += gif.header.LENGTH;
+        var signature = String.fromCharCode.apply(null, Array.prototype.slice.call(buffer, i, i + GifHeader.LENGTH));
+        i += GifHeader.LENGTH;
         this.position = i;
 
         if(signature !== 'GIF87a' && signature !== 'GIF89a') {
@@ -271,7 +269,7 @@
         var buffer = this.buffer;
         var i = this.position;
 
-        if(i + gif.screenDescriptor.LENGTH >= buffer.length) {
+        if(i + GifScreenDescriptor.LENGTH >= buffer.length) {
             this.onerror('invalid screen descriptor (encountered early end of stream)');
             return null;
         }
@@ -281,8 +279,8 @@
         result.height = buffer[i] | (buffer[i + 1] << 8); i += 2;
 
         var packedFields = buffer[i]; i++;
-        if((packedFields & gif.screenDescriptor.GLOBAL_COLOR) !== 0) {
-            result.globalColors = new Uint8Array(4 * (1 << ((packedFields & gif.screenDescriptor.DEPTH_MASK) + 1)));
+        if((packedFields & GifScreenDescriptor.GLOBAL_COLOR) !== 0) {
+            result.globalColors = new Uint8Array(4 * (1 << ((packedFields & GifScreenDescriptor.DEPTH_MASK) + 1)));
         }
 
         result.backgroundIndex = buffer[i]; i++;
@@ -297,7 +295,7 @@
         var buffer = this.buffer;
         var i = this.position;
 
-        if(i + gif.graphicsControl.LENGTH >= buffer.length) {
+        if(i + GifGraphicsControl.LENGTH >= buffer.length) {
             this.onerror('invalid graphics control block (encountered early end of stream)');
             return null;
         }
@@ -305,17 +303,17 @@
         var result = new GifGraphicsControl();
 
         var len = buffer[i]; i++;
-        if(len !== gif.graphicsControl.LENGTH - 1) {
+        if(len !== GifGraphicsControl.LENGTH - 1) {
             this.onerror('invalid graphics control block (block size does not match GIF specification)');
             return null;
         }
 
         var packedFields = buffer[i]; i++;
 
-        result.isTransparent = (packedFields & gif.graphicsControl.TRANSPARENCY) !== 0;
-        result.disposal = (packedFields & gif.graphicsControl.DISPOSAL_MASK) >> gif.graphicsControl.DISPOSAL_SHIFT;
-        if(result.disposal >= gif.disposal.COUNT) {
-            result.disposal = gif.disposal.UNSPECIFIED;
+        result.isTransparent = (packedFields & GifGraphicsControl.TRANSPARENCY) !== 0;
+        result.disposal = (packedFields & GifGraphicsControl.DISPOSAL_MASK) >> GifGraphicsControl.DISPOSAL_SHIFT;
+        if(result.disposal >= GifDisposal.COUNT) {
+            result.disposal = GifDisposal.UNSPECIFIED;
         }
 
         result.delay = buffer[i] | (buffer[i + 1] << 8); i += 2;
@@ -334,7 +332,7 @@
         var buffer = this.buffer;
         var i = this.position;
 
-        if(i + gif.imageDescriptor.LENGTH >= buffer.length) {
+        if(i + GifImageDescriptor.LENGTH >= buffer.length) {
             this.onerror('invalid image descriptor (encountered early end of stream)');
             return null;
         }
@@ -347,10 +345,10 @@
         result.height = buffer[i] | (buffer[i + 1] << 8); i += 2;
 
         var packedFields = buffer[i]; i++;
-        if((packedFields & gif.imageDescriptor.LOCAL_COLOR) !== 0) {
-            result.localColors = new Uint8Array(4 * (1 << ((packedFields & gif.imageDescriptor.DEPTH_MASK) + 1)));
+        if((packedFields & GifImageDescriptor.LOCAL_COLOR) !== 0) {
+            result.localColors = new Uint8Array(4 * (1 << ((packedFields & GifImageDescriptor.DEPTH_MASK) + 1)));
         }
-        result.interlace = (packedFields & gif.imageDescriptor.INTERLACE) !== 0;
+        result.interlace = (packedFields & GifImageDescriptor.INTERLACE) !== 0;
 
         this.position = i;
 
@@ -413,7 +411,7 @@
         }
 
         var minCodeSize = buffer[i++];
-        if(minCodeSize > gif.lzw.MAX_BITS) {
+        if(minCodeSize > GifCompression.MAX_BITS) {
             this.onerror('invalid frame data (minimum code requires more bits than permitted by GIF specification)');
             return false;
         }
@@ -423,16 +421,18 @@
         var codeSize = minCodeSize + 1;
         var codeMask = (1 << codeSize) - 1;
         var avail = eoi + 1;
-        var oldCode = gif.lzw.NULL_CODE;
+        var oldCode = GifCompression.NULL_CODE;
 
-        var prefixCodes = new Array(gif.lzw.MAX_CODES);
-        var suffixChars = new Array(gif.lzw.MAX_CODES);
+        var prefixCodes = this.prefixCodes;
+        var suffixChars = this.suffixChars;
+        var charStack = this.charStack;
         for(var c = 0; c < clear; c++) {
-            prefixCodes[c] = gif.lzw.NULL_CODE;
+            prefixCodes[c] = GifCompression.NULL_CODE;
             suffixChars[c] = c & 0xFF;
         }
 
-        var charStack = [];
+        
+        var charStackLength = 0;
         var subBlockLength = 0;
         var bits = 0;
         var value = 0;
@@ -472,7 +472,7 @@
                     codeSize = minCodeSize + 1;
                     codeMask = (1 << codeSize) - 1;
                     avail = eoi + 1;
-                    oldCode = gif.lzw.NULL_CODE;
+                    oldCode = GifCompression.NULL_CODE;
                 } else if(code === eoi) {
                     if(i + subBlockLength >= buffer.length) {
                         this.onerror('invalid frame data (encountered early end of stream)');
@@ -481,52 +481,52 @@
                     i += subBlockLength;
                     this.position = i;
                     return this.skipSubBlocks();
-                } else if(oldCode === gif.lzw.NULL_CODE) {
-                    if(code >= gif.lzw.MAX_CODES
-                    || charStack.length >= gif.lzw.MAX_STACK_SIZE) {
+                } else if(oldCode === GifCompression.NULL_CODE) {
+                    if(code >= GifCompression.MAX_CODES
+                    || charStackLength >= GifCompression.MAX_STACK_SIZE) {
                         this.onerror('invalid frame data (character stack overflow)');
                         return false;
                     }
-                    charStack.push(suffixChars[code]);
+                    charStack[charStackLength++] = suffixChars[code];
                     firstChar = code & 0xFF;
                     oldCode = code;
                 } else if(code <= avail) {
                     var currentCode = code;
 
                     if(currentCode === avail) {
-                        if(charStack.length >= gif.lzw.MAX_STACK_SIZE) {
+                        if(charStackLength >= GifCompression.MAX_STACK_SIZE) {
                             this.onerror('invalid frame data (character stack overflow)');
                             return false;
                         }
-                        charStack.push(firstChar);
+                        charStack[charStackLength++] = firstChar;
                         currentCode = oldCode;
                     }
                     while(currentCode >= clear) {
-                        if(currentCode >= gif.lzw.MAX_CODES) {
+                        if(currentCode >= GifCompression.MAX_CODES) {
                             this.onerror('invalid frame data (exhausted available prefix codes)');
                             return false;
                         }
-                        if(charStack.length >= gif.lzw.MAX_STACK_SIZE) {
+                        if(charStackLength >= GifCompression.MAX_STACK_SIZE) {
                             this.onerror('invalid frame data (character stack overflow)');
                             return false;
                         }
-                        charStack.push(suffixChars[currentCode]);
+                        charStack[charStackLength++] = suffixChars[currentCode];
                         currentCode = prefixCodes[currentCode];
                     }
 
                     firstChar = suffixChars[currentCode];
 
-                    if(charStack.length >= gif.lzw.MAX_STACK_SIZE) {
+                    if(charStackLength >= GifCompression.MAX_STACK_SIZE) {
                         this.onerror('invalid frame data (character stack overflow)');
                         return false;
                     }
-                    charStack.push(firstChar);
+                    charStack[charStackLength++] = firstChar;
 
-                    if(avail < gif.lzw.MAX_CODES) {
+                    if(avail < GifCompression.MAX_CODES) {
                         prefixCodes[avail] = oldCode;
                         suffixChars[avail] = firstChar;
                         avail++;
-                        if((avail & codeMask) === 0 && avail < gif.lzw.MAX_CODES) {
+                        if((avail & codeMask) === 0 && avail < GifCompression.MAX_CODES) {
                             codeSize++;
                             codeMask = (1 << codeSize) - 1;
                         }
@@ -542,12 +542,12 @@
                 var indexData = frame.indexData;
                 var width = frame.imageDescriptor.width;
                 var height = frame.imageDescriptor.height;
-                while(charStack.length > 0) {
+                while(charStackLength > 0) {
                     if(y >= height) {
                         break;
                     }
 
-                    var top = charStack.pop();
+                    var top = charStack[--charStackLength];
                     indexData[y * width + x] = top;
                     x++;
 
@@ -595,14 +595,14 @@
 
             var blockType = this.buffer[this.position++];
             switch(blockType) {
-                case gif.block.EXTENSION:
+                case GifBlock.EXTENSION:
                     if(this.position >= this.buffer.length) {
                         return null;
                     }
 
                     var extensionType = this.buffer[this.position++];
                     switch(extensionType) {
-                        case gif.extension.GRAPHICS_CONTROL:
+                        case GifExtension.GRAPHICS_CONTROL:
                             var graphicsControl = this.readGraphicsControl();
                             if(!graphicsControl) {
                                 return null;
@@ -616,7 +616,7 @@
                     }
 
                     break;
-                case gif.block.IMAGE:
+                case GifBlock.IMAGE:
                     var imageDescriptor = this.readImageDescriptor();
                     if(!imageDescriptor) {
                         return null;
@@ -638,7 +638,7 @@
 
                     img.frames.push(frame);
                     break;
-                case gif.block.TERMINATOR:
+                case GifBlock.TERMINATOR:
                     return img;
             }
         }
@@ -674,7 +674,7 @@
 
                         gifs[i] = gif;
                         remaining--;
-                        if(remaining == 0) {
+                        if(remaining === 0) {
                             oncomplete(gifs);
                         }
                     }
